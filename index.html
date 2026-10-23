@@ -149,6 +149,13 @@ input[type=search]{width:100%;font:inherit;padding:12px 14px;border-radius:12px;
 .chart2 .col i{display:block;width:100%}
 .chart2 em{font-style:normal;font-size:11px;font-weight:700;color:var(--ink);line-height:14px;min-height:14px;margin-bottom:3px;animation:up .5s .4s both}
 .chart2 span{font-size:10px;color:var(--mut);margin-top:5px}
+.kvl b{white-space:nowrap;margin-left:10px;text-align:right}
+.tipr{cursor:pointer;-webkit-user-select:none;user-select:none}
+.qi{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--acc2);color:var(--acc);font-style:normal;font-size:12px;font-weight:700;margin-left:4px;vertical-align:1px;transition:transform .25s,background-color .25s}
+.tipr.open .qi{background:var(--acc);color:var(--onacc);transform:rotate(360deg)}
+.tipx{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s ease}
+.tipx>div{overflow:hidden;font-size:14px;line-height:1.45;color:var(--ink);background:var(--acc2);border-radius:12px;padding:0 12px;transition:padding .3s,margin .3s}
+.tipx.open{grid-template-rows:1fr}.tipx.open>div{padding:10px 12px;margin:2px 0 8px}
 .csum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin-top:12px}
 .csum b{display:block;font-size:20px}.csum span{font-size:12px;color:var(--mut)}
 .chart2 .td span{color:var(--acc);font-weight:700}.chart2 .td em{color:var(--acc)}
@@ -397,6 +404,7 @@ function browse(o){
 }
 
 /* ---------- подробный прогресс ---------- */
+function tipRow(label,val,expl,color){return'<div class="kvl tipr"><span>'+label+' <i class="qi">?</i></span><b'+(color?' style="color:'+color+'"':'')+'>'+val+'</b></div><div class="tipx"><div>'+esc(expl)+'</div></div>'}
 function pd2(d){var a=d.split("-");return new Date(+a[0],+a[1]-1,+a[2])}
 function bestStreak(){var ks=Object.keys(S.days).filter(function(k){return S.days[k].n}).map(function(k){return pd2(k).getTime()}).sort(function(a,b){return a-b}),b=0,c=0,prev=0;
   ks.forEach(function(t){c=(prev&&Math.round((t-prev)/DAY)==1)?c+1:1;b=Math.max(b,c);prev=t});return b}
@@ -410,7 +418,8 @@ function progress(o){
   var dl=daysLeft(),perDay=dl>0?Math.ceil(need/Math.max(1,dl-1)):need;
   // темп за последние 7 дней
   var wk=0,act=0;for(var i=0;i<7;i++){var d=new Date();d.setDate(d.getDate()-i);var v=S.days[dk(d)];if(v&&v.n){wk+=v.ok;act++}}
-  var pace=wk/7,eta=pace>0?Math.ceil(need/pace):null;
+  var first=Object.keys(S.days).filter(function(k){return S.days[k].n}).map(function(k){return pd2(k).getTime()}).sort()[0],t0=new Date();t0.setHours(0,0,0,0);
+  var span=first?Math.max(1,Math.min(7,Math.round((t0-first)/DAY)+1)):7,pace=wk/span,eta=pace>0?Math.ceil(need/pace):null;
   var tAcc=tk.n?Math.round(tk.ok/tk.n*100):0,goalPc=perDay?Math.min(100,Math.round((tk.ok||0)/perDay*100)):100;
   var hard=all.filter(function(id){var p=P(id);return p&&p.wr>0}).sort(function(a,b){return (S.p[b].wr-S.p[a].wr)||(S.p[a].lv-S.p[b].lv)}).slice(0,7);
   var rows=Object.keys(TOP).map(function(t){return{t:t,s:topicStats(t)}}).sort(function(a,b){return b.s.c.done/b.s.total-a.s.c.done/a.s.total});
@@ -427,11 +436,12 @@ function progress(o){
     (perDay&&dl>0?'<div class="muted" style="margin:12px 0 6px">План на сегодня: '+(tk.ok||0)+' из '+perDay+' верных ответов</div><div class="mbar"><i style="width:0;background:var(--acc)" data-w="'+goalPc+'%"></i></div>':'')+
   '</div>'+
   '<div class="card"><h2>До экзамена</h2><div class="kvl"><span>Дата экзамена</span><input type="date" id="exd" value="'+(S.examDate||'')+'"></div>'+
-    (dl!=null?'<div class="kvl"><span>Осталось дней</span><b>'+(dl>=0?dl:'экзамен прошёл')+'</b></div>':'')+
-    '<div class="kvl"><span>Осталось верных ответов до 100%</span><b>'+need+'</b></div>'+
-    (dl>0&&need?'<div class="kvl"><span>Нужно в день</span><b style="color:var(--acc)">≈ '+perDay+'</b></div>':'')+
-    '<div class="kvl"><span>Ваш темп (7 дней)</span><b>'+(pace?Math.round(pace)+' в день':'—')+'</b></div>'+
-    (eta!=null&&need?'<div class="kvl"><span>При таком темпе всё выучите</span><b style="color:'+(dl!=null&&eta<=dl?'var(--ok)':'var(--bad)')+'">через '+plural(eta,"день","дня","дней")+'</b></div>':'')+
+    (dl!=null?tipRow('Осталось дней',(dl>=0?dl:'экзамен прошёл'),'Сколько дней осталось до даты экзамена, которую вы указали выше. Дату можно поменять.'):'')+
+    tipRow('Осталось верных ответов',need,'Каждый вопрос нужно 3 раза подряд ответить верно, чтобы он стал выученным. Новый вопрос требует 3 верных ответа ('+c.new+' × 3 = '+c.new*MASTER+'), а начатые вопросы требуют оставшиеся до 3 ('+(need-c.new*MASTER)+'). Всего до 100%: '+need+'. Ошибка обнуляет серию вопроса, и число растёт.')+
+    (dl>0&&need?tipRow('Цель на день: верных ответов','≈ '+perDay,'Столько верных ответов нужно давать каждый день, чтобы выучить все вопросы к экзамену. Считается так: '+need+' ÷ '+Math.max(1,dl-1)+' дн. (последний день оставлен на повторение). Сегодня у вас '+(tk.ok||0)+' из '+perDay+'. Ошибки в цель не входят: засчитываются только верные ответы.','var(--acc)'):'')+
+    tipRow('Ваш темп: верных ответов в день',(pace?Math.round(pace):'—'),'Сколько верных ответов в день вы в среднем даёте сейчас. Считается за последние '+plural(span,"день","дня","дней")+' (максимум 7, включая сегодня): '+wk+' ÷ '+span+' = '+(Math.round(pace*10)/10)+'. Дни без занятий тоже входят в расчёт, поэтому пропуски снижают темп.'+(perDay&&dl>0&&need?(pace>=perDay?' Темп не ниже цели, вы успеваете.':' Темп ниже цели ('+perDay+' в день), стоит заниматься чуть больше.'):''))+
+    (eta!=null&&need?tipRow('При таком темпе всё выучите','через '+plural(eta,"день","дня","дней"),'Прогноз: '+need+' оставшихся верных ответов ÷ ваш темп '+Math.round(pace)+' в день ≈ '+plural(eta,"день","дня","дней")+'. '+(dl!=null&&eta<=dl?'Это раньше экзамена, вы успеваете.':'Это позже экзамена, нужно увеличить темп до цели на день.'),(dl!=null&&eta<=dl?'var(--ok)':'var(--bad)')):'')+
+    '<div class="muted" style="margin-top:8px">Нажмите на строку, чтобы увидеть пояснение.</div>'+
     (!need?'<div class="kvl"><span>Все вопросы выучены 🎉</span><b>повторяйте</b></div>':'')+
   '</div>'+
   '<div class="card"><div class="hdr"><div><h2>Последние 14 дней</h2></div></div><div class="seg" id="cm"><button data-m="a" class="on">Ответы</button><button data-m="m">Выучено</button><button data-m="t">Время</button></div><div id="ch"></div></div>'+
@@ -447,6 +457,7 @@ function progress(o){
     '<button class="big sec" id="hw" style="margin-top:10px">Тренировать эти вопросы</button></div>':'');
   view(h,o);
   $("bk").onclick=function(){home({back:1})};
+  app.querySelectorAll(".tipr").forEach(function(r){r.onclick=function(){r.classList.toggle("open");r.nextSibling.classList.toggle("open")}});
   $("exd").onchange=function(){S.examDate=this.value;save();progress({keepScroll:1,stg:false})};
   app.querySelectorAll(".tp").forEach(function(b){b.onclick=function(){topicMenu(b.dataset.t)}});
   app.querySelectorAll(".li .lq").forEach(function(q){q.onclick=function(){var a=q.parentNode.querySelector(".la");a.hidden=!a.hidden}});
