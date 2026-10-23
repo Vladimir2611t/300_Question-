@@ -225,7 +225,7 @@ function home(o){
   (canSave?'':'<div class="note">⚠️ Этот браузер не даёт сохранять прогресс. Откройте тренажёр в Chrome. Пока можно учить, но результаты сбросятся после закрытия.</div>')+
   '<div class="card tap" id="hero"><div class="hero"><div class="ring">'+ring(42,12,[[pd,"var(--ok)"],[pl,"var(--warn)"]])+'<b><span data-count="'+Math.round(pd*100)+'" data-suf="%">0%</span><small>выучено</small></b></div>'+
   '<div class="legend"><div><span class="dot" style="background:var(--ok)"></span>Выучено: <b data-count="'+c.done+'">0</b></div><div><span class="dot" style="background:var(--warn)"></span>В процессе: <b data-count="'+c.learn+'">0</b></div><div><span class="dot" style="background:var(--new)"></span>Новые: <b data-count="'+c.new+'">0</b></div></div></div>'+
-  '<div class="sub" style="margin-top:10px">'+(s?'🔥 '+plural(s,"день","дня","дней")+' подряд · ':'')+'Сегодня: '+plural(tk.n,"ответ","ответа","ответов")+(tk.n?', верно '+Math.round(tk.ok/tk.n*100)+'%':'')+(tk.m?', выучено '+tk.m:'')+'</div><div class="more"><span>Подробный прогресс</span><span>›</span></div></div>'+
+  '<div class="sub" style="margin-top:10px">'+(s?'🔥 '+plural(s,"день","дня","дней")+' подряд · ':'')+'Сегодня: '+plural(tk.n,"ответ","ответа","ответов")+(tk.n?', верно '+Math.round(tk.ok/tk.n*100)+'%':'')+(learnedByDay()[dk()]?', выучено '+learnedByDay()[dk()]:'')+'</div><div class="more"><span>Подробный прогресс</span><span>›</span></div></div>'+
   '<button class="btn pri" id="go"><span class="ic">▶</span><span><b>'+(c.new==Q.length?'Начать обучение':'Продолжить обучение')+'</b><small>'+(c.learn?'в процессе: '+c.learn+' · ':'')+(c.new?'новых: '+c.new:'новых больше нет')+' · '+S.size+' за раз</small></span></button>'+
   '<button class="btn" id="mis" '+(w?'':'disabled')+'><span class="ic">🎯</span><span><b>Работа над ошибками</b><small>'+(w?'Вопросы, где вы ошибались, пока не будут отвечены верно 3 раза':'Ошибок пока нет')+'</small></span>'+(w?'<span class="bd">'+w+'</span>':'')+'</button>'+
   '<button class="btn" id="wk"><span class="ic">📉</span><span><b>Слабые темы</b><small>Точность по разделам, тренировка по теме</small></span></button>'+
@@ -404,6 +404,8 @@ function browse(o){
 }
 
 /* ---------- подробный прогресс ---------- */
+// выученные по дням считаются по самим вопросам (когда вопрос стал выученным), поэтому всегда совпадают с кольцом
+function learnedByDay(){var r={};ids().forEach(function(id){var p=P(id);if(p&&p.n&&p.lv>=MASTER){var k=dk(new Date(p.doneAt||p.last||Date.now()));r[k]=(r[k]||0)+1}});return r}
 function tipRow(label,val,expl,color){return'<div class="kvl tipr"><span>'+label+' <i class="qi">?</i></span><b'+(color?' style="color:'+color+'"':'')+'>'+val+'</b></div><div class="tipx"><div>'+esc(expl)+'</div></div>'}
 function pd2(d){var a=d.split("-");return new Date(+a[0],+a[1]-1,+a[2])}
 function bestStreak(){var ks=Object.keys(S.days).filter(function(k){return S.days[k].n}).map(function(k){return pd2(k).getTime()}).sort(function(a,b){return a-b}),b=0,c=0,prev=0;
@@ -427,7 +429,7 @@ function progress(o){
   '<div class="card center"><div class="ring bigring">'+ring(42,10,[[pd,"var(--ok)"],[pl,"var(--warn)"]])+'<b><span data-count="'+Math.round(pd*100)+'" data-suf="%">0%</span><small>выучено</small></b></div>'+
   '<div class="legend2"><span><span class="dot" style="background:var(--ok)"></span>выучено <b data-count="'+c.done+'">0</b></span><span><span class="dot" style="background:var(--warn)"></span>в процессе <b data-count="'+c.learn+'">0</b></span><span><span class="dot" style="background:var(--new)"></span>новые <b data-count="'+c.new+'">0</b></span></div></div>'+
   '<div class="card"><h2>Сегодня</h2><div class="tiles">'+
-    '<div class="tile g"><b data-count="'+(tk.m||0)+'">0</b><span>выучено</span></div>'+
+    '<div class="tile g"><b data-count="'+(learnedByDay()[dk()]||0)+'">0</b><span>выучено</span></div>'+
     '<div class="tile a"><b data-count="'+(tk.nw||0)+'">0</b><span>новых начато</span></div>'+
     '<div class="tile"><b data-count="'+tk.n+'">0</b><span>ответов</span></div>'+
     '<div class="tile g"><b data-count="'+tAcc+'" data-suf="%">0%</b><span>верно</span></div>'+
@@ -467,11 +469,11 @@ function progress(o){
 }
 function chart(m){
   // высоты в пикселях: маленькие значения (например, 1) всегда видны
-  var H=96,MIN=10,ds=[],mx=1,sum=0;
+  var H=96,MIN=10,ds=[],mx=1,sum=0,LB=learnedByDay();
   for(var i=13;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);var v=S.days[dk(d)]||{n:0,ok:0};
-    var val=m=="a"?v.n:m=="m"?(v.m||0):Math.round((v.t||0)/60e3);ds.push({d:d,v:v,val:val,td:i==0});mx=Math.max(mx,val);sum+=val}
+    var val=m=="a"?v.n:m=="m"?(LB[dk(d)]||0):Math.round((v.t||0)/60e3);ds.push({d:d,v:v,val:val,td:i==0});mx=Math.max(mx,val);sum+=val}
   var unit=m=="t"?" мин":"",tv=ds[13].val;
-  $("ch").innerHTML='<div class="csum"><div><b>'+tv+unit+'</b><span>сегодня</span></div><div><b>'+sum+unit+'</b><span>за 14 дней</span></div><div><b>'+Math.round(sum/14)+unit+'</b><span>в среднем</span></div></div>'+
+  $("ch").innerHTML='<div class="csum"><div><b>'+tv+unit+'</b><span>сегодня</span></div><div><b>'+sum+unit+'</b><span>за 14 дней</span></div><div><b>'+(sum/14<10?String(Math.round(sum/14*10)/10).replace(".",","):Math.round(sum/14))+unit+'</b><span>в среднем</span></div></div>'+
   '<div class="chart2">'+ds.map(function(x,j){var h=x.val?Math.max(MIN,Math.round(x.val/mx*H)):0,st='style="height:'+h+'px;animation-delay:'+(j*0.03)+'s"',col;
     if(!x.val)col='<div class="col zero"></div>';
     else if(m=="a"){var okh=Math.round(h*x.v.ok/x.v.n);col='<div class="col" '+st+'><i style="height:'+(h-okh)+'px;background:var(--bad)"></i><i style="height:'+okh+'px;background:var(--ok)"></i></div>'}
