@@ -142,13 +142,16 @@ input[type=search]{width:100%;font:inherit;padding:12px 14px;border-radius:12px;
 .bigring{width:150px;height:150px;margin:4px auto 8px}
 .bigring b{font-size:34px}
 .legend2{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;font-size:13.5px;color:var(--mut)}
-.chart2{display:flex;align-items:flex-end;gap:5px;height:140px;margin-top:12px}
-.chart2>div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;position:relative}
-.chart2 .col{width:100%;display:flex;flex-direction:column-reverse;border-radius:5px 5px 0 0;overflow:hidden;transform-origin:bottom;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
+.chart2{display:flex;align-items:flex-end;gap:5px;margin-top:12px}
+.chart2>div{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center}
+.chart2 .col{width:100%;border-radius:5px 5px 0 0;overflow:hidden;transform-origin:bottom;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
+.chart2 .col.zero{height:3px;border-radius:2px;background:var(--line);animation:none}
 .chart2 .col i{display:block;width:100%}
-.chart2 em{font-style:normal;font-size:10px;color:var(--mut);margin-bottom:2px;min-height:12px;animation:up .5s .5s both}
-.chart2 span{font-size:10px;color:var(--mut);margin-top:4px}
-.chart2 .td span{color:var(--acc);font-weight:700}
+.chart2 em{font-style:normal;font-size:11px;font-weight:700;color:var(--ink);line-height:14px;min-height:14px;margin-bottom:3px;animation:up .5s .4s both}
+.chart2 span{font-size:10px;color:var(--mut);margin-top:5px}
+.csum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin-top:12px}
+.csum b{display:block;font-size:20px}.csum span{font-size:12px;color:var(--mut)}
+.chart2 .td span{color:var(--acc);font-weight:700}.chart2 .td em{color:var(--acc)}
 .kvl{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}.kvl:last-child{border-bottom:0}.kvl span{color:var(--mut)}
 input[type=date]{font:inherit;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14.5px;animation:up .3s both;z-index:9;transition:opacity .35s}.toast.out{opacity:0}
@@ -452,11 +455,16 @@ function progress(o){
   chart("a");
 }
 function chart(m){
-  var ds=[],mx=1;for(var i=13;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);var v=S.days[dk(d)]||{n:0,ok:0};
-    var val=m=="a"?v.n:m=="m"?(v.m||0):Math.round((v.t||0)/60e3);ds.push({d:d,v:v,val:val,td:i==0});mx=Math.max(mx,val)}
-  $("ch").innerHTML='<div class="chart2">'+ds.map(function(x,j){var hgt=x.val/mx*100,st='style="height:'+hgt+'%;animation-delay:'+(j*0.03)+'s"',col;
-    if(m=="a")col='<div class="col" '+st+'><i style="flex:'+x.v.ok+';background:var(--ok)"></i><i style="flex:'+(x.v.n-x.v.ok)+';background:var(--bad)"></i></div>';
-    else col='<div class="col" '+st+'><i style="flex:1;background:'+(m=="m"?"var(--ok)":"var(--acc)")+'"></i></div>';
+  // высоты в пикселях: маленькие значения (например, 1) всегда видны
+  var H=96,MIN=10,ds=[],mx=1,sum=0;
+  for(var i=13;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);var v=S.days[dk(d)]||{n:0,ok:0};
+    var val=m=="a"?v.n:m=="m"?(v.m||0):Math.round((v.t||0)/60e3);ds.push({d:d,v:v,val:val,td:i==0});mx=Math.max(mx,val);sum+=val}
+  var unit=m=="t"?" мин":"",tv=ds[13].val;
+  $("ch").innerHTML='<div class="csum"><div><b>'+tv+unit+'</b><span>сегодня</span></div><div><b>'+sum+unit+'</b><span>за 14 дней</span></div><div><b>'+Math.round(sum/14)+unit+'</b><span>в среднем</span></div></div>'+
+  '<div class="chart2">'+ds.map(function(x,j){var h=x.val?Math.max(MIN,Math.round(x.val/mx*H)):0,st='style="height:'+h+'px;animation-delay:'+(j*0.03)+'s"',col;
+    if(!x.val)col='<div class="col zero"></div>';
+    else if(m=="a"){var okh=Math.round(h*x.v.ok/x.v.n);col='<div class="col" '+st+'><i style="height:'+(h-okh)+'px;background:var(--bad)"></i><i style="height:'+okh+'px;background:var(--ok)"></i></div>'}
+    else col='<div class="col" '+st+'><i style="height:'+h+'px;background:'+(m=="m"?"var(--ok)":"var(--acc)")+'"></i></div>';
     return'<div class="'+(x.td?'td':'')+'"><em>'+(x.val||'')+'</em>'+col+'<span>'+x.d.getDate()+'</span></div>'}).join('')+'</div>'+
     '<div class="muted" style="margin-top:8px">'+(m=="a"?'<span class="dot" style="background:var(--ok)"></span>верно <span class="dot" style="background:var(--bad);margin-left:8px"></span>ошибки':m=="m"?'Сколько вопросов стали выученными в этот день':'Минут занятий в день')+'</div>';
 }
