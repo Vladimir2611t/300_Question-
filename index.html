@@ -202,7 +202,12 @@ var TH={auto:["🌓","Авто"],light:["☀️","Светлая"],dark:["🌙",
 function setTheme(t){S.theme=t;save();applyTheme()}
 /* ---------- показ экрана с анимацией ---------- */
 function view(html,o){o=o||{};app.innerHTML=html;app.className="wrap scr"+(o.back?" back":"")+(o.stg===false?"":" stg");
-  void app.offsetWidth;if(!o.keepScroll)window.scrollTo(0,0);requestAnimationFrame(function(){requestAnimationFrame(animateIn)})}
+  void app.offsetWidth;if(!o.keepScroll)window.scrollTo(0,0);requestAnimationFrame(function(){requestAnimationFrame(animateIn)});setTimeout(syncBack,0)}
+var hasEntry=false;
+// на главном экране «назад» закрывает приложение, на остальных нажимает кнопку возврата текущего экрана
+function backBtn(){return $("bk")||$("quit")||$("hm")}
+function syncBack(){if(backBtn()&&!hasEntry){try{history.pushState({ther:1},"")}catch(e){}hasEntry=true}}
+window.addEventListener("popstate",function(){hasEntry=false;var b=backBtn();if(b)b.click();setTimeout(syncBack,50)});
 function animateIn(){
   app.querySelectorAll("[data-w]").forEach(function(e){e.style.width=e.dataset.w});
   app.querySelectorAll("circle[data-dash]").forEach(function(e){e.setAttribute("stroke-dasharray",e.dataset.dash)});
